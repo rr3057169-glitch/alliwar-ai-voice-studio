@@ -1,3 +1,4 @@
+
 import streamlit as st
 import asyncio
 import edge_tts
@@ -95,9 +96,11 @@ speed_option = st.slider(
 speed_percent = int((speed_option - 1.0) * 100)
 speed_str = f"{speed_percent:+d}%" if speed_percent != 0 else "+0%"
 
-# --- ऑडिओ जनरेशनचे फंक्शन ---
+# --- ऑडिओ जनरेशनचे फंक्शन (एरर फ्री अपडेट) ---
 async def generate_voice(text, voice, speed, output_filename):
-    communicate = edge_tts.Communicate(text, voice, rate=speed)
+    # स्क्रिप्टमधील स्पेशल अवतरण चिन्हे काढून टाकणे जेणेकरून एरर येणार नाही
+    clean_text = text.replace('"', '').replace('"', '').replace("'", "").replace("“", "").replace("”", "").strip()
+    communicate = edge_tts.Communicate(clean_text, voice, rate=speed)
     await communicate.save(output_filename)
 
 # --- विभाग ४: प्ले आणि डाऊनलोड ---
