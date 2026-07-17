@@ -3,6 +3,7 @@ import streamlit as st
 import asyncio
 import edge_tts
 import os
+import html  # स्पेशल कॅरेक्टर्स फिक्स करण्यासाठी
 
 # --- पेजची रचना आणि टायटल ---
 st.set_page_config(page_title="Alliwar AI Voice Studio", page_icon="🎙️", layout="centered")
@@ -15,7 +16,6 @@ st.markdown("---")
 # --- विभाग १: भाषा आणि कॅरेक्टर निवडणे ---
 st.subheader("🌐 १. भाषा आणि आवाज निवडा (Select Language & Voice)")
 
-# सर्व भारतीय भाषा आणि त्यांचे अधिकृत AI आवाज (Male/Female)
 languages = {
     "मराठी (Marathi)": {
         "👩 काव्या (Kavya - Female)": "mr-IN-KavyaNeural",
@@ -28,38 +28,6 @@ languages = {
     "इंग्रजी (English - India)": {
         "👩 न्युरा (Neerja - Female)": "en-IN-NeerjaNeural",
         "👨 प्रबात (Prabhat - Male)": "en-IN-PrabhatNeural"
-    },
-    "तमिळ (Tamil)": {
-        "👩 पल्लवी (Pallavi - Female)": "ta-IN-PallaviNeural",
-        "👨 वल्लुवर (Valluvar - Male)": "ta-IN-ValluvarNeural"
-    },
-    "तेलगू (Telugu)": {
-        "👩 श्रुती (Shruti - Female)": "te-IN-ShrutiNeural",
-        "👨 मोहन (Mohan - Male)": "te-IN-MohanNeural"
-    },
-    "कन्नड (Kannada)": {
-        "👩 सपिना (Sapna - Female)": "kn-IN-SapnaNeural",
-        "👨 गगन (Gagan - Male)": "kn-IN-GaganNeural"
-    },
-    "गुजराती (Gujarati)": {
-        "👩 ध्वनी (Dhwani - Female)": "gu-IN-DhwaniNeural",
-        "👨 निरंजन (Niranjan - Male)": "gu-IN-NiranjanNeural"
-    },
-    "बंगाली (Bengali)": {
-        "👩 तनिषा (Tanisha - Female)": "bn-IN-TanishaNeural",
-        "👨 प्रदिप (Pradeep - Male)": "bn-IN-PradeepNeural"
-    },
-    "मल्याळम (Malayalam)": {
-        "👩 शोभना (Sobhana - Female)": "ml-IN-SobhanaNeural",
-        "👨 मिधुन (Midhun - Male)": "ml-IN-MidhunNeural"
-    },
-    "पंजाबी (Punjabi)": {
-        "👩 हरप्रीत (Harpreet - Female)": "pa-IN-HarpreetNeural",
-        "👨 बलविंदर (Balwinder - Male)": "pa-IN-AnwarNeural"
-    },
-    "उर्दू (Urdu - India)": {
-        "👩 गुली (Gul - Female)": "ur-IN-GulNeural",
-        "👨 सलमान (Salman - Male)": "ur-IN-SalmanNeural"
     }
 }
 
@@ -93,14 +61,24 @@ speed_option = st.slider(
     step=0.1
 )
 
+# स्पीड स्ट्रिंग एकदम अचूक तयार करणे
 speed_percent = int((speed_option - 1.0) * 100)
-speed_str = f"{speed_percent:+d}%" if speed_percent != 0 else "+0%"
+if speed_percent == 0:
+    speed_str = "+0%"
+else:
+    speed_str = f"{speed_percent:+d}%"
 
-# --- ऑडिओ जनरेशनचे फंक्शन (एरर फ्री अपडेट) ---
+# --- ऑडिओ जनरेशनचे मजबूत फंक्शन ---
 async def generate_voice(text, voice, speed, output_filename):
-    # स्क्रिप्टमधील स्पेशल अवतरण चिन्हे काढून टाकणे जेणेकरून एरर येणार नाही
-    clean_text = text.replace('"', '').replace('"', '').replace("'", "").replace("“", "").replace("”", "").strip()
-    communicate = edge_tts.Communicate(clean_text, voice, rate=speed)
+    # १. आधी सर्व प्रकारचे नको असलेले कोड्स आणि अवतरण चिन्हे काढून टाकणे
+    clean_text = text.replace('"', '').replace("'", "").replace("“", "").replace("”", "")
+    clean_text = clean_text.replace('\n', ' ').replace('\r', ' ').strip()
+    
+    # २. मायक्रोसॉफ्ट सर्व्हरसाठी टेक्स्ट सुरक्षित (Escape) करणे
+    safe_text = html.escape(clean_text)
+    
+    # ३. ऑडिओ जनरेट करणे
+    communicate = edge_tts.Communicate(safe_text, voice, rate=speed)
     await communicate.save(output_filename)
 
 # --- विभाग ४: प्ले आणि डाऊनलोड ---
@@ -113,21 +91,25 @@ if st.button("🚀 आवाज तयार करा (Generate Audio)"):
             output_file = "alliwar_voice.mp3"
             
             try:
+                # सिस्टीमचा इव्हेंट लूप व्यवस्थित हाताळणे
                 asyncio.run(generate_voice(text_input, voice_code, speed_str, output_file))
                 
-                st.success("🎉 आवाज यशस्वीरित्या तयार झाला आहे!")
-                
-                with open(output_file, "rb") as f:
-                    audio_bytes = f.read()
-                st.audio(audio_bytes, format="audio/mp3")
-                
-                st.download_button(
-                    label="📥 MP3 फाईल डाऊनलोड करा",
-                    data=audio_bytes,
-                    file_name="alliwar_ai_voice.mp3",
-                    mime="audio/mp3"
-                )
-                os.remove(output_file)
+                if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+                    st.success("🎉 आवाज यशस्वीरित्या तयार झाला आहे!")
+                    
+                    with open(output_file, "rb") as f:
+                        audio_bytes = f.read()
+                    st.audio(audio_bytes, format="audio/mp3")
+                    
+                    st.download_button(
+                        label="📥 MP3 फाईल डाऊनलोड करा",
+                        data=audio_bytes,
+                        file_name="alliwar_ai_voice.mp3",
+                        mime="audio/mp3"
+                    )
+                    os.remove(output_file)
+                else:
+                    st.error("❌ ऑडिओ फाईल तयार झाली नाही, कृपया स्क्रिप्ट थोडी लहान करून पहा.")
                 
             except Exception as e:
                 st.error(f"❌ तांत्रिक अडचण आली: {str(e)}")
@@ -139,11 +121,6 @@ st.markdown(
     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center;">
         <h4>☕ Support Alliwar Studio</h4>
         <p>If this tool is helping you in your content creation, feel free to support us!</p>
-        <a href="https://payment-link-or-upi" target="_blank" style="text-decoration: none;">
-            <div style="background-color: #FF813F; color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; display: inline-block;">
-                🏆 सपोर्ट करा / Donate UPI
-            </div>
-        </a>
     </div>
     """,
     unsafe_allow_html=True
