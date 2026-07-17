@@ -1,9 +1,8 @@
-
 import streamlit as st
 import asyncio
 import edge_tts
 import os
-import html  # स्पेशल कॅरेक्टर्स फिक्स करण्यासाठी
+import html
 
 # --- पेजची रचना आणि टायटल ---
 st.set_page_config(page_title="Alliwar AI Voice Studio", page_icon="🎙️", layout="centered")
@@ -61,23 +60,18 @@ speed_option = st.slider(
     step=0.1
 )
 
-# स्पीड स्ट्रिंग एकदम अचूक तयार करणे
 speed_percent = int((speed_option - 1.0) * 100)
 if speed_percent == 0:
     speed_str = "+0%"
 else:
     speed_str = f"{speed_percent:+d}%"
 
-# --- ऑडिओ जनरेशनचे मजबूत फंक्शन ---
+# --- ऑडिओ जनरेशनचे फिक्स फंक्शन (Streamlit Compatibility) ---
 async def generate_voice(text, voice, speed, output_filename):
-    # १. आधी सर्व प्रकारचे नको असलेले कोड्स आणि अवतरण चिन्हे काढून टाकणे
     clean_text = text.replace('"', '').replace("'", "").replace("“", "").replace("”", "")
     clean_text = clean_text.replace('\n', ' ').replace('\r', ' ').strip()
-    
-    # २. मायक्रोसॉफ्ट सर्व्हरसाठी टेक्स्ट सुरक्षित (Escape) करणे
     safe_text = html.escape(clean_text)
     
-    # ३. ऑडिओ जनरेट करणे
     communicate = edge_tts.Communicate(safe_text, voice, rate=speed)
     await communicate.save(output_filename)
 
@@ -91,8 +85,11 @@ if st.button("🚀 आवाज तयार करा (Generate Audio)"):
             output_file = "alliwar_voice.mp3"
             
             try:
-                # सिस्टीमचा इव्हेंट लूप व्यवस्थित हाताळणे
-                asyncio.run(generate_voice(text_input, voice_code, speed_str, output_file))
+                # स्ट्रीमलिटच्या चालू इव्हेंट लूपमध्येच हे टास्क रन करणे (नवा लूप न उघडता)
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(generate_voice(text_input, voice_code, speed_str, output_file))
+                loop.close()
                 
                 if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
                     st.success("🎉 आवाज यशस्वीरित्या तयार झाला आहे!")
