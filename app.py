@@ -1,45 +1,27 @@
 import streamlit as st
-import asyncio
-import edge_tts
+from gtts import gTTS
 import os
-import html
 
 # --- पेजची रचना आणि टायटल ---
 st.set_page_config(page_title="Alliwar AI Voice Studio", page_icon="🎙️", layout="centered")
 
 st.title("🎙️ Alliwar AI Voice Studio (V1.0)")
-st.write("भारतातील सर्व प्रमुख भाषांमध्ये एकदम नॅचरल AI आवाज तयार करा! 🔥")
+st.write("गुगल एआय इंजिनद्वारे भारतातील सर्व प्रमुख भाषांमध्ये आवाज तयार करा! 🔥")
 
 st.markdown("---")
 
-# --- विभाग १: भाषा आणि कॅरेक्टर निवडणे ---
-st.subheader("🌐 १. भाषा आणि आवाज निवडा (Select Language & Voice)")
+# --- विभाग १: भाषा निवडणे ---
+st.subheader("🌐 १. भाषा निवडा (Select Language)")
 
+# गुगल व्हॉईससाठी सोपी भाषा रचना
 languages = {
-    "मराठी (Marathi)": {
-        "👩 काव्या (Kavya - Female)": "mr-IN-KavyaNeural",
-        "👨 मधुर (Madhur - Male)": "mr-IN-MadhurNeural"
-    },
-    "हिंदी (Hindi)": {
-        "👩 मधूरम (Madhuram - Female)": "hi-IN-MadhuramNeural",
-        "👨 मधुर (Madhur - Male)": "hi-IN-MadhurNeural"
-    },
-    "इंग्रजी (English - India)": {
-        "👩 न्युरा (Neerja - Female)": "en-IN-NeerjaNeural",
-        "👨 प्रबात (Prabhat - Male)": "en-IN-PrabhatNeural"
-    }
+    "मराठी (Marathi)": "mr",
+    "हिंदी (Hindi)": "hi",
+    "इंग्रजी (English - India)": "en"
 }
 
-col1, col2 = st.columns(2)
-
-with col1:
-    selected_lang = st.selectbox("भाषा निवडा (Select Language):", list(languages.keys()))
-
-with col2:
-    available_voices = languages[selected_lang]
-    selected_voice_name = st.selectbox("कोणाचा आवाज हवा? (Select Voice Character):", list(available_voices.keys()))
-
-voice_code = available_voices[selected_voice_name]
+selected_lang = st.selectbox("भाषा निवडा (Select Language):", list(languages.keys()))
+lang_code = languages[selected_lang]
 
 # --- विभाग २: स्क्रिप्ट इनपुट ---
 st.markdown("---")
@@ -50,46 +32,19 @@ text_input = st.text_area(
     height=150
 )
 
-# --- विभाग ३: स्पीड CONTROL ---
-st.subheader("⚡ ३. आवाजाचा वेग (Speed Control)")
-speed_option = st.slider(
-    "वेग कमी-जास्त करा:",
-    min_value=0.5,
-    max_value=1.5,
-    value=1.0,
-    step=0.1
-)
-
-speed_percent = int((speed_option - 1.0) * 100)
-if speed_percent == 0:
-    speed_str = "+0%"
-else:
-    speed_str = f"{speed_percent:+d}%"
-
-# --- ऑडिओ जनरेशनचे फिक्स फंक्शन (Streamlit Compatibility) ---
-async def generate_voice(text, voice, speed, output_filename):
-    clean_text = text.replace('"', '').replace("'", "").replace("“", "").replace("”", "")
-    clean_text = clean_text.replace('\n', ' ').replace('\r', ' ').strip()
-    safe_text = html.escape(clean_text)
-    
-    communicate = edge_tts.Communicate(safe_text, voice, rate=speed)
-    await communicate.save(output_filename)
-
-# --- विभाग ४: प्ले आणि डाऊनलोड ---
+# --- विभाग ३: प्ले आणि डाऊनलोड ---
 st.markdown("---")
 if st.button("🚀 आवाज तयार करा (Generate Audio)"):
     if not text_input.strip():
         st.warning("⚠️ कृपया आधी वरच्या बॉक्समध्ये स्क्रिप्ट लिहा!")
     else:
-        with st.spinner("⏳ AI आवाज तयार होत आहे, थोडी वाट पाहा..."):
-            output_file = "alliwar_voice.mp3"
+        with st.spinner("⏳ गुगल AI आवाज तयार होत आहे, थोडी वाट पाहा..."):
+            output_file = "alliwar_google_voice.mp3"
             
             try:
-                # स्ट्रीमलिटच्या चालू इव्हेंट लूपमध्येच हे टास्क रन करणे (नवा लूप न उघडता)
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(generate_voice(text_input, voice_code, speed_str, output_file))
-                loop.close()
+                # गुगल टीटीएस इंजिन (एकदम सरळ आणि सोपं)
+                tts = gTTS(text=text_input.strip(), lang=lang_code, slow=False)
+                tts.save(output_file)
                 
                 if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
                     st.success("🎉 आवाज यशस्वीरित्या तयार झाला आहे!")
@@ -106,12 +61,12 @@ if st.button("🚀 आवाज तयार करा (Generate Audio)"):
                     )
                     os.remove(output_file)
                 else:
-                    st.error("❌ ऑडिओ फाईल तयार झाली नाही, कृपया स्क्रिप्ट थोडी लहान करून पहा.")
+                    st.error("❌ ऑडिओ फाईल तयार होऊ शकली नाही. कृपया पुन्हा प्रयत्न करा.")
                 
             except Exception as e:
                 st.error(f"❌ तांत्रिक अडचण आली: {str(e)}")
 
-# --- विभाग ५: सपोर्ट ---
+# --- विभाग ४: सपोर्ट ---
 st.markdown("---")
 st.markdown(
     """
